@@ -1,5 +1,6 @@
 import csv
 import sys
+import os
 
 from util import Node, StackFrontier, QueueFrontier
 
@@ -55,11 +56,18 @@ def load_data(directory):
 def main():
     if len(sys.argv) > 2:
         sys.exit("Usage: python degrees.py [directory]")
-    directory = sys.argv[1] if len(sys.argv) == 2 else "large"
+    default_dir = os.path.join(os.path.dirname(__file__), "large")
+    directory = sys.argv[1] if len(sys.argv) == 2 else default_dir
 
     # Load data from files into memory
     print("Loading data...")
-    load_data(directory)
+    try:
+        load_data(directory)
+    except FileNotFoundError:
+        print(f"Error: Data files not found in {directory}")
+        print("Please ensure the directory exists and contains people.csv, movies.csv, and stars.csv")
+        sys.exit(1)
+        
     print("Data loaded.")
 
     source = person_id_for_name(input("Name: "))
@@ -91,6 +99,45 @@ def shortest_path(source, target):
 
     If no possible path, returns None.
     """
+    # Initialize frontier with the source node
+    frontier = QueueFrontier()
+    frontier.add(Node(state=source, parent=None, action=None))
+    
+    # Initialize an empty explored set
+    explored = set()
+    
+    # Keep track of nodes we've already added to frontier to avoid duplicates
+    seen = set()
+    seen.add(source)
+    
+    while not frontier.empty():
+        # Remove node from frontier
+        current_node = frontier.remove()
+        current_state = current_node.state
+        
+        # Check if we've reached the target
+        if current_state == target:
+            # Reconstruct the path
+            path = []
+            while current_node.parent is not None:
+                path.append((current_node.action, current_node.state))
+                current_node = current_node.parent
+            path.reverse()
+            return path
+        
+        # Add current node to explored set
+        explored.add(current_state)
+        
+        # Explore neighbors
+        for movie_id, person_id in neighbors_for_person(current_state):
+            if person_id not in seen and person_id not in explored:
+                # Create new node
+                new_node = Node(state=person_id, parent=current_node, action=movie_id)
+                frontier.add(new_node)
+                seen.add(person_id)
+    
+    # If no path found
+    return None
 
     # TODO
     raise NotImplementedError
